@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ provider.username }} - مقدم خدمة{% endblock %}
+
+{% block content %}
+<!-- قسم الغلاف -->
+<div class="bg-primary text-white py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-3 text-center mb-3 mb-md-0">
+                {% if provider_profile.profile_image %}
+                <img src="{{ provider_profile.profile_image.url }}" alt="{{ provider.username }}"
+                    class="rounded-circle border border-white border-3"
+                    style="width: 150px; height: 150px; object-fit: cover;">
+                {% else %}
+                <div class="rounded-circle bg-white text-primary d-inline-flex align-items-center justify-content-center border border-white border-3"
+                    style="width: 150px; height: 150px; font-size: 4rem;">
+                    <i class="bi bi-person-fill"></i>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="col-md-9">
+                <h2 class="fw-bold mb-2">{{ provider.get_full_name|default:provider.username }}</h2>
+                <p class="mb-2">
+                    <i class="bi bi-briefcase ms-2"></i>
+                    {{ provider_profile.specialization|default:"مقدم خدمة" }}
+                </p>
+                <p class="mb-3">
+                    <i class="bi bi-geo-alt ms-2"></i>
+                    {{ provider.city|default:"المملكة العربية السعودية" }}
+                </p>
+
+                <!-- التقييم -->
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div>
+                        <i class="bi bi-star-fill text-warning"></i>
+                        <span class="fw-bold">{{ provider_profile.average_rating }}</span>
+                        <span class="small">/5.0</span>
+                    </div>
+                    <div class="vr"></div>
+                    <div>
+                        <i class="bi bi-clipboard-check ms-2"></i>
+                        <span class="fw-bold">{{ provider_profile.completed_orders }}</span>
+                        <span class="small">طلب مكتمل</span>
+                    </div>
+                    <div class="vr"></div>
+                    <div>
+                        <i class="bi bi-clock-history ms-2"></i>
+                        <span class="fw-bold">{{ provider_profile.experience_years }}</span>
+                        <span class="small">سنوات خبرة</span>
+                    </div>
+                </div>
+
+                <!-- الحالة -->
+                {% if provider_profile.is_available %}
+                <span class="badge bg-success">
+                    <i class="bi bi-check-circle ms-1"></i>
+                    متاح للطلبات
+                </span>
+                {% else %}
+                <span class="badge bg-secondary">
+                    <i class="bi bi-x-circle ms-1"></i>
+                    غير متاح حالياً
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- المحتوى -->
+<div class="container py-5">
+    <div class="row">
+        <!-- العمود الرئيسي -->
+        <div class="col-lg-8">
+            <!-- النبذة التعريفية -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3">
+                        <i class="bi bi-person-lines-fill ms-2"></i>
+                        نبذة تعريفية
+                    </h5>
+                    {% if provider_profile.bio %}
+                    <p class="text-muted" style="white-space: pre-line;">{{ provider_profile.bio }}</p>
+                    {% else %}
+                    <p class="text-muted fst-italic">لم يضف مقدم الخدمة نبذة تعريفية بعد.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- الخدمات المقدمة (سيتم إضافتها في المرحلة 3) -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3">
+                        <i class="bi bi-grid-3x3-gap ms-2"></i>
+                        الخدمات المقدمة
+                    </h5>
+                    <p class="text-muted fst-italic">ستظهر الخدمات هنا في المرحلة القادمة.</p>
+                </div>
+            </div>
+
+            <!-- التقييمات (سيتم إضافتها في المرحلة 6) -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3">
+                        <i class="bi bi-star ms-2"></i>
+                        آراء العملاء
+                    </h5>
+                    <p class="text-muted fst-italic">ستظهر التقييمات هنا في المرحلة القادمة.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- الشريط الجانبي -->
+        <div class="col-lg-4">
+            <!-- معلومات الاتصال -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">معلومات الاتصال</h6>
+
+                    {% if provider.email %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">البريد الإلكتروني</small>
+                        <p class="mb-0">
+                            <i class="bi bi-envelope ms-2 text-primary"></i>
+                            {{ provider.email }}
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    {% if provider.phone %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">رقم الجوال</small>
+                        <p class="mb-0">
+                            <i class="bi bi-phone ms-2 text-primary"></i>
+                            {{ provider.phone }}
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    {% if provider_profile.address %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">العنوان</small>
+                        <p class="mb-0" style="white-space: pre-line;">
+                            <i class="bi bi-geo-alt ms-2 text-primary"></i>
+                            {{ provider_profile.address }}
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- معلومات السعر -->
+            {% if provider_profile.hourly_rate %}
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body text-center">
+                    <h6 class="fw-bold mb-3">السعر بالساعة</h6>
+                    <h2 class="text-primary mb-0">{{ provider_profile.hourly_rate }} ريال</h2>
+                    <p class="text-muted small mb-0">قابل للتفاوض</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- زر طلب الخدمة -->
+            <div class="card shadow-sm border-0 bg-primary text-white">
+                <div class="card-body text-center">
+                    <h6 class="mb-3">هل أنت مهتم بالعمل مع هذا المقدم؟</h6>
+                    {% if user.is_authenticated %}
+                    {% if provider_profile.is_available %}
+                    <a href="#" class="btn btn-light btn-lg w-100">
+                        <i class="bi bi-send ms-2"></i>
+                        اطلب الخدمة الآن
+                    </a>
+                    <p class="small mt-2 mb-0 opacity-75">
+                        سيتم تفعيل هذا الزر في المرحلة القادمة
+                    </p>
+                    {% else %}
+                    <button class="btn btn-secondary btn-lg w-100" disabled>
+                        <i class="bi bi-x-circle ms-2"></i>
+                        غير متاح حالياً
+                    </button>
+                    {% endif %}
+                    {% else %}
+                    <a href="{% url 'accounts:login' %}?next={{ request.path }}" class="btn btn-light btn-lg w-100">
+                        <i class="bi bi-box-arrow-in-left ms-2"></i>
+                        سجل الدخول للطلب
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

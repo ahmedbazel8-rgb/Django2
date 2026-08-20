@@ -1,0 +1,208 @@
+"""
+Views لتطبيق accounts (تسجيل، دخول، ملف شخصي)
+Views for accounts app
+"""
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.views.generic import DetailView
+from django.contrib.auth import login as auth_login, logout as auth_logout
+from .forms import UserRegisterForm, UserLoginForm, UserProfileForm, ProviderProfileForm
+from .models import User, ProviderProfile
+from . import services
+
+
+def register_view(request):
+    """
+    صفحة تسجيل مستخدم جديد
+    User registration page
+    """
+    if request.user.is_authenticated:
+        return redirect('home')
+    
+    if request.method == 'POST':
+        form = UserRegisterForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.role = form.cleaned_data['role']
+            user.save()
+            
+            # منع تسجيل الدخول التلقائي لمقدمي الخدمات
+            if user.is_provider():
+                messages.success(request, 'تم إنشاء حسابك بنجاح! حسابك الآن قيد المراجعة من الإدارة لتتمكن من تقديم خدماتك. يرجى المحاولة لاحقاً.')
+                return redirect('accounts:login')
+                
+            # تسجيل دخول تلقائي للعملاء
+            auth_login(request, user)
+            messages.success(request, f'مرحباً {user.username}! تم إنشاء حسابك بنجاح.')
+            return redirect('home')
+    else:
+        form = UserRegisterForm()
+    
+    return render(request, 'accounts/register.html', {'form': form})
+
+
+def login_view(request):
+    """
+    صفحة تسجيل الدخول
+    Login page
+    """
+    if request.user.is_authenticated:
+        return redirect('home')
+    
+    if request.method == 'POST':
+        form = UserLoginForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            
+            # تحقق من حالة الاعتماد لمقدمي الخدمات
+            if user.is_provider():
+                profile = services.get_provider_profile(user)
+                if profile.status == 'pending':
+                    messages.warning(request, 'حسابك قيد المراجعة حالياً من قبل الإدارة. يرجى الانتظار حتى يتم اعتماده لتتمكن من الدخول.')
+                    return redirect('accounts:login')
+                elif profile.status == 'rejected':
+                    messages.error(request, 'نعتذر، لقد تم رفض طلبك للانضمام كمقدم خدمة.')
+                    return redirect('accounts:login')
+                    
+            auth_login(request, user)
+            messages.success(request, f'مرحباً بعودتك {user.username}!')
+            
+            # التوجيه للصفحة المطلوبة أو الرئيسية
+            next_page = request.GET.get('next', 'home')
+            return redirect(next_page)
+        else:
+            messages.error(request, 'اسم المستخدم أو كلمة المرور غير صحيحة.')
+    else:
+        form = UserLoginForm()
+    
+    return render(request, 'accounts/login.html', {'form': form})
+
+
+@login_required
+def logout_view(request):
+    """
+    تسجيل الخروج
+    Logout
+    """
+    username = request.user.username
+    auth_logout(request)
+    messages.info(request, f'تم تسجيل خروجك بنجاح. نراك قريباً!')
+    return redirect('home')
+
+
+@login_required
+def profile_view(request):
+    """
+    صفحة الملف الشخصي
+    User profile page
+    """
+    user = request.user
+    
+    if request.method == 'POST':
+        form = UserProfileForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'تم تحديث معلوماتك بنجاح.')
+            return redirect('accounts:profile')
+    else:
+        form = UserProfileForm(instance=user)
+    
+    context = {
+        'user': user,
+        'form': form,
+    }
+    
+    # إذا كان مقدم خدمة، أضف معلومات إضافية
+    if user.is_provider():
+        context['provider_profile'] = services.get_provider_profile(user)
+    
+    return render(request, 'accounts/profile.html', context)
+
+
+@login_required
+def provider_profile_edit_view(request):
+    """
+    صفحة تعديل ملف مقدم الخدمة
+    Provider profile edit page
+    """
+    # التحقق من أن المستخدم مقدم خدمة
+    if not request.user.is_provider():
+        messages.error(request, 'هذه الصفحة متاحة لمقدمي الخدمات فقط.')
+        return redirect('accounts:profile')
+    
+    profile = services.get_provider_profile(request.user)
+    
+    if request.method == 'POST':
+        user_form = UserProfileForm(request.POST, instance=request.user)
+        provider_form = ProviderProfileForm(request.POST, request.FILES, instance=profile)
+        
+        if user_form.is_valid() and provider_form.is_valid():
+            user_form.save()
+            provider_form.save()
+            messages.success(request, 'تم تحديث ملفك الشخصي بنجاح.')
+            return redirect('accounts:provider_profile_edit')
+    else:
+        user_form = UserProfileForm(instance=request.user)
+        provider_form = ProviderProfileForm(instance=profile)
+    
+    context = {
+        'user_form': user_form,
+        'provider_form': provider_form,
+        'profile': profile,
+    }
+    
+    return render(request, 'accounts/provider_profile_edit.html', context)
+
+
+class ProviderDetailView(DetailView):
+    """
+    صفحة عرض ملف مقدم الخدمة للزوار
+    Public provider profile view
+    """
+    model = User
+    template_name = 'accounts/provider_detail.html'
+    context_object_name = 'provider'
+    
+    def get_queryset(self):
+        """فقط المستخدمين من نوع provider"""
+        return User.objects.filter(role='provider', is_active=True)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        provider = self.get_object()
+        
+        # الحصول على ملف مقدم الخدمة
+        context['provider_profile'] = services.get_provider_profile(provider)
+        
+        # سيتم إضافة الخدمات والتقييمات في المراحل القادمة
+        # context['services'] = ...
+        # context['reviews'] = ...
+        
+        return context
+
+
+# الدالة الديكورية للتحقق من الأدوار (سنستخدمها لاحقاً)
+def role_required(allowed_roles):
+    """
+    ديكوريتر للتحقق من دور المستخدم
+    Decorator to check user role
+    
+    Usage:
+        @role_required(['provider', 'admin'])
+        def my_view(request):
+            ...
+    """
+    def decorator(view_func):
+        def wrapped_view(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                messages.error(request, 'يجب تسجيل الدخول أولاً.')
+                return redirect('accounts:login')
+            
+            if request.user.role not in allowed_roles and not request.user.is_superuser:
+                messages.error(request, 'ليس لديك صلاحية للوصول لهذه الصفحة.')
+                return redirect('home')
+            
+            return view_func(request, *args, **kwargs)
+        return wrapped_view
+    return decorator

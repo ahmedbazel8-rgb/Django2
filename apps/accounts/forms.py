@@ -1,0 +1,226 @@
+"""
+نماذج تسجيل الدخول والتسجيل
+Forms for login, registration, and profile editing
+"""
+from django import forms
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
+from .models import User, ProviderProfile
+
+
+# تعريف أداة التحقق من رقم الهاتف (أرقام فقط، ومتاح إشارة + اختياريًا)
+phone_validator = RegexValidator(
+    regex=r'^\+?[0-9]{8,15}$',
+    message="يرجى إدخال رقم هاتف صحيح يحتوي على أرقام فقط (مثال: 771234567)."
+)
+
+
+class UserRegisterForm(UserCreationForm):
+    """
+    نموذج تسجيل مستخدم جديد
+    User registration form
+    """
+    email = forms.EmailField(
+        label='البريد الإلكتروني',
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'example@domain.com'
+        })
+    )
+    
+    phone = forms.CharField(
+        label='رقم الجوال',
+        required=False,
+        validators=[phone_validator],  # تم إضافة الفلتر هنا
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '77XXXXXXX',
+            'type': 'tel',
+            'inputmode': 'numeric',
+            'oninput': "this.value = this.value.replace(/[^0-9+]/g, '')"  # يمنع الحروف مباشرة أثناء الطباعة
+        })
+    )
+    
+    city = forms.CharField(
+        label='المدينة',
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'صنعاء'
+        })
+    )
+    
+    role = forms.ChoiceField(
+        label='نوع الحساب',
+        choices=[('customer', 'عميل'), ('provider', 'مقدم خدمة')],
+        widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
+        initial='customer'
+    )
+    
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'phone', 'city', 'role', 'password1', 'password2']
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'اسم المستخدم'
+            }),
+        }
+        labels = {
+            'username': 'اسم المستخدم',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['password1'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'كلمة المرور'
+        })
+        self.fields['password2'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'تأكيد كلمة المرور'
+        })
+        self.fields['password1'].label = 'كلمة المرور'
+        self.fields['password2'].label = 'تأكيد كلمة المرور'
+    
+    def clean_email(self):
+        """التحقق من عدم تكرار البريد الإلكتروني"""
+        email = self.cleaned_data.get('email')
+        if User.objects.filter(email=email).exists():
+            raise ValidationError('هذا البريد الإلكتروني مستخدم بالفعل.')
+        return email
+
+    def clean_phone(self):
+        """التحقق من رقم الهاتف لمنع كتابة الحروف"""
+        phone = self.cleaned_data.get('phone')
+        if phone:
+            # التأكد من إزالة أي مسافات زائدة
+            phone = phone.strip()
+            # التأكد أن القيمة تحتوي على أرقام فقط
+            if not phone.isdigit() and not phone.startswith('+'):
+                raise ValidationError('يجب أن يحتوي رقم الجوال على أرقام فقط.')
+        return phone
+
+
+class UserLoginForm(AuthenticationForm):
+    """
+    نموذج تسجيل الدخول
+    Login form
+    """
+    username = forms.CharField(
+        label='اسم المستخدم',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'اسم المستخدم',
+            'autofocus': True
+        })
+    )
+    
+    password = forms.CharField(
+        label='كلمة المرور',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'كلمة المرور'
+        })
+    )
+
+
+class UserProfileForm(forms.ModelForm):
+    """
+    نموذج تعديل الملف الشخصي الأساسي
+    User profile edit form
+    """
+    phone = forms.CharField(
+        label='رقم الجوال',
+        required=False,
+        validators=[phone_validator],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '77XXXXXXX',
+            'type': 'tel',
+            'inputmode': 'numeric',
+            'oninput': "this.value = this.value.replace(/[^0-9+]/g, '')"
+        })
+    )
+
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email', 'phone', 'city']
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'الاسم الأول'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'اسم العائلة'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'البريد الإلكتروني'}),
+            'city': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'المدينة'}),
+        }
+        labels = {
+            'first_name': 'الاسم الأول',
+            'last_name': 'اسم العائلة',
+            'email': 'البريد الإلكتروني',
+            'phone': 'رقم الجوال',
+            'city': 'المدينة',
+        }
+    
+    def clean_email(self):
+        """التحقق من عدم تكرار البريد الإلكتروني عند التعديل"""
+        email = self.cleaned_data.get('email')
+        if User.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
+            raise ValidationError('هذا البريد الإلكتروني مستخدم بالفعل.')
+        return email
+
+    def clean_phone(self):
+        """التحقق من رقم الهاتف عند التعديل"""
+        phone = self.cleaned_data.get('phone')
+        if phone:
+            phone = phone.strip()
+            if not phone.isdigit() and not phone.startswith('+'):
+                raise ValidationError('يجب أن يحتوي رقم الجوال على أرقام فقط.')
+        return phone
+
+
+class ProviderProfileForm(forms.ModelForm):
+    """
+    نموذج تعديل ملف مقدم الخدمة
+    Provider profile edit form
+    """
+    class Meta:
+        model = ProviderProfile
+        fields = ['bio', 'profile_image', 'specialization', 'experience_years', 
+                  'hourly_rate', 'address', 'is_available']
+        widgets = {
+            'bio': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'اكتب نبذة تعريفية عنك وعن خبراتك...'
+            }),
+            'profile_image': forms.FileInput(attrs={'class': 'form-control'}),
+            'specialization': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'مثال: تصميم جرافيك'
+            }),
+            'experience_years': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'placeholder': '5'
+            }),
+            'hourly_rate': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'placeholder': '100.00'
+            }),
+            'address': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'العنوان التفصيلي...'
+            }),
+            'is_available': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'bio': 'نبذة تعريفية',
+            'profile_image': 'صورة الملف الشخصي',
+            'specialization': 'التخصص',
+            'experience_years': 'سنوات الخبرة',
+            'hourly_rate': 'السعر بالساعة (ريال يمني)',
+            'address': 'العنوان',
+            'is_available': 'متاح لطلبات جديدة',
+        }

@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+
+{% block title %}تعديل ملف مقدم الخدمة - منصة سوق الخدمات{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- العنوان -->
+            <div class="text-center mb-4">
+                <h2 class="fw-bold">
+                    <i class="bi bi-pencil-square ms-2"></i>
+                    تعديل ملف مقدم الخدمة
+                </h2>
+                <p class="text-muted">قم بتحديث معلوماتك لتظهر للعملاء</p>
+            </div>
+
+            <form method="post" enctype="multipart/form-data" class="loading-form">
+                {% csrf_token %}
+
+                <!-- المعلومات الأساسية -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="mb-0">
+                            <i class="bi bi-person-circle ms-2"></i>
+                            المعلومات الأساسية
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">الاسم الأول</label>
+                                {{ user_form.first_name }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">اسم العائلة</label>
+                                {{ user_form.last_name }}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">البريد الإلكتروني</label>
+                            {{ user_form.email }}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">رقم الجوال</label>
+                                {{ user_form.phone }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">المدينة</label>
+                                {{ user_form.city }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- معلومات العمل -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-success text-white py-3">
+                        <h5 class="mb-0">
+                            <i class="bi bi-briefcase ms-2"></i>
+                            معلومات العمل
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- الصورة الشخصية -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-image ms-2"></i>
+                                صورة الملف الشخصي
+                            </label>
+
+                            {% if profile.profile_image %}
+                            <div class="mb-2">
+                                <img src="{{ profile.profile_image.url }}" alt="Profile" class="rounded"
+                                    style="max-width: 150px; max-height: 150px;">
+                            </div>
+                            {% endif %}
+
+                            {{ provider_form.profile_image }}
+                            <small class="form-text text-muted d-block mt-1">
+                                صورة واضحة ومهنية تساعد في جذب العملاء
+                            </small>
+                        </div>
+
+                        <!-- النبذة التعريفية -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-card-text ms-2"></i>
+                                نبذة تعريفية
+                            </label>
+                            {{ provider_form.bio }}
+                            <small class="form-text text-muted">
+                                اكتب نبذة مختصرة عن خبراتك ومهاراتك (حتى 500 حرف)
+                            </small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="bi bi-tag ms-2"></i>
+                                    التخصص
+                                </label>
+                                {{ provider_form.specialization }}
+                                <small class="form-text text-muted">
+                                    مثال: تصميم جرافيك، برمجة ويب، تسويق
+                                </small>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="bi bi-calendar3 ms-2"></i>
+                                    سنوات الخبرة
+                                </label>
+                                {{ provider_form.experience_years }}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-cash-coin ms-2"></i>
+                                السعر بالساعة (ريال يمني)
+                            </label>
+                            {{ provider_form.hourly_rate }}
+                            <small class="form-text text-muted">
+                                اترك فارغاً إذا كنت تفضل التفاوض مع كل عميل
+                            </small>
+                        </div>
+
+                        <!-- الحالة -->
+                        <div class="form-check form-switch">
+                            {{ provider_form.is_available }}
+                            <label class="form-check-label fw-bold" for="{{ provider_form.is_available.id_for_label }}">
+                                متاح لطلبات جديدة
+                            </label>
+                            <small class="form-text text-muted d-block">
+                                إذا كنت غير متاح حالياً، لن تصلك طلبات جديدة
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الموقع الجغرافي -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-info text-white py-3">
+                        <h5 class="mb-0">
+                            <i class="bi bi-geo-alt ms-2"></i>
+                            الموقع الجغرافي
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">العنوان التفصيلي</label>
+                            {{ provider_form.address }}
+                            <small class="form-text text-muted">
+                                العنوان يساعد العملاء في العثور عليك
+                            </small>
+                        </div>
+
+                        <!-- ملاحظة عن الخرائط -->
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle ms-2"></i>
+                            <strong>ملاحظة:</strong>
+                            إضافة خدمة تحديد الموقع على الخريطة قادمة قريباً.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الإحصائيات (للعرض فقط) -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-secondary text-white py-3">
+                        <h5 class="mb-0">
+                            <i class="bi bi-graph-up ms-2"></i>
+                            الإحصائيات
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-4 mb-3">
+                                <div class="p-3 bg-light rounded">
+                                    <h3 class="text-primary mb-0">{{ profile.total_orders }}</h3>
+                                    <p class="text-muted small mb-0">إجمالي الطلبات</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="p-3 bg-light rounded">
+                                    <h3 class="text-success mb-0">{{ profile.completed_orders }}</h3>
+                                    <p class="text-muted small mb-0">الطلبات المكتملة</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="p-3 bg-light rounded">
+                                    <h3 class="text-warning mb-0">
+                                        <i class="bi bi-star-fill"></i>
+                                        {{ profile.average_rating }}
+                                    </h3>
+                                    <p class="text-muted small mb-0">متوسط التقييم</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- أزرار الحفظ -->
+                <div class="d-flex gap-2 justify-content-end">
+                    <a href="{% url 'accounts:profile' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle ms-2"></i>
+                        إلغاء
+                    </a>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-check-circle ms-2"></i>
+                        حفظ التغييرات
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
