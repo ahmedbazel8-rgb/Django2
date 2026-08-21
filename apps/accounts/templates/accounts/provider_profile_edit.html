@@ -88,14 +88,47 @@
             </div>
             <div class="mt-3">
               <label class="form-label fw-bold">حدد موقعك على الخريطة</label>
-              <div id="provider-location-map" class="provider-map" data-lat="{{ profile.latitude|default_if_none:'' }}" data-lng="{{ profile.longitude|default_if_none:'' }}"></div>
+              {% if not maps_api_key %}
+              <div class="alert alert-warning">يرجى إعداد مفتاح الخرائط في ملف البيئة MAPS_API_KEY. ستعمل خريطة OpenStreetMap الحالية بدون مفتاح، وسيصبح تكامل مزود الخرائط الخارجي جاهزًا عند إضافة المفتاح.</div>
+              {% endif %}
+              <div id="provider-location-map" class="provider-map" data-api-key="{{ maps_api_key }}" data-lat="{{ profile.latitude|default_if_none:'' }}" data-lng="{{ profile.longitude|default_if_none:'' }}"></div>
               <small class="form-text text-muted">انقر على الخريطة أو حرّك المؤشر. تُرسل الإحداثيات مع النموذج وتحفظ في قاعدة البيانات عند الضغط على حفظ التغييرات.</small>
             </div>
           </div>
         </div>
 
+
         <div class="card shadow-sm border-0 mb-4">
-          <div class="card-header bg-warning text-dark py-3"><h5 class="mb-0"><i class="bi bi-file-earmark-lock ms-2"></i>5. المستندات وحالة التحقق</h5></div>
+          <div class="card-header bg-light py-3"><h5 class="mb-0"><i class="bi bi-percent ms-2"></i>5. سياسة العمولة والمحافظ الإلكترونية</h5></div>
+          <div class="card-body">
+            <div class="alert alert-info">
+              {% if terms %}<strong>عمولة المنصة: {{ terms.commission_rate }}%</strong><br>
+              مثال: قيمة الطلب 100، عمولة المنصة {{ terms.commission_rate }}%، صافي مقدم الخدمة = 100 - العمولة.{% else %}<strong>لا توجد سياسة عمولة فعالة بعد.</strong><br>يرجى انتظار الإدارة لإعداد نسبة العمولة من لوحة التحكم.{% endif %}
+            </div>
+            {% if accepted_terms %}
+              <p class="text-success"><i class="bi bi-check-circle"></i> وافقت على هذه السياسة بتاريخ {{ accepted_terms.accepted_at|date:'Y-m-d H:i' }} بنسبة {{ accepted_terms.commission_rate }}%.</p>
+            {% elif terms %}
+              <p class="text-danger">يجب الموافقة على سياسة العمولة قبل إرسال الحساب للمراجعة.</p>
+              <button form="commission-accept-form" class="btn btn-success"><i class="bi bi-check2-square ms-2"></i>أوافق على سياسة العمولة</button>
+            {% else %}
+              <button class="btn btn-secondary" disabled>بانتظار إعداد سياسة العمولة</button>
+            {% endif %}
+            <hr>
+            <h6 class="fw-bold">محافظ استقبال المدفوعات</h6>
+            {% for wallet, provider_wallet in wallet_rows %}
+            <div class="border rounded p-3 mb-2" style="border-right: 6px solid {{ wallet.color }} !important;">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="wallets" value="{{ wallet.pk }}" id="wallet_{{ wallet.pk }}" {% if provider_wallet and provider_wallet.is_active %}checked{% endif %}>
+                <label class="form-check-label fw-bold" for="wallet_{{ wallet.pk }}"><span style="color: {{ wallet.color }}">●</span> {{ wallet.name }}</label>
+              </div>
+              <label class="form-label mt-2" for="wallet_account_{{ wallet.pk }}">رقم الحساب</label>
+              <input class="form-control" id="wallet_account_{{ wallet.pk }}" name="wallet_account_{{ wallet.pk }}" value="{% if provider_wallet %}{{ provider_wallet.account_number }}{% endif %}" placeholder="777XXXXXX">
+            </div>
+            {% empty %}<p class="text-muted">لا توجد محافظ نشطة حاليًا. يمكن للإدارة إضافتها من لوحة التحكم.</p>{% endfor %}
+          </div>
+        </div>
+        <div class="card shadow-sm border-0 mb-4">
+          <div class="card-header bg-warning text-dark py-3"><h5 class="mb-0"><i class="bi bi-file-earmark-lock ms-2"></i>6. المستندات وحالة التحقق</h5></div>
           <div class="card-body">
             <div class="row g-2 mb-3">
               {% for key, ok in verification_checklist.items %}
@@ -117,6 +150,7 @@
         </div>
       </form>
 
+      <form id="commission-accept-form" method="post" action="{% url 'accounts:accept_commission_policy' %}" class="d-none">{% csrf_token %}</form>
       <form method="post" action="{% url 'accounts:provider_submit_review' %}" class="text-end">
         {% csrf_token %}
         <button class="btn btn-success" {% if not can_submit_for_review %}disabled{% endif %}><i class="bi bi-send-check ms-2"></i>إرسال الحساب للمراجعة</button>
@@ -135,6 +169,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
 (function(){
+  const configuredMapsKey = document.getElementById('provider-location-map')?.dataset.apiKey || '';
   const mapEl = document.getElementById('provider-location-map');
   const latInput = document.getElementById('id_provider-latitude');
   const lngInput = document.getElementById('id_provider-longitude');
