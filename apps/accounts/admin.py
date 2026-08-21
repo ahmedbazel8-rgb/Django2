@@ -4,6 +4,7 @@ Admin configuration for accounts app
 """
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.urls import reverse
 from django.utils.html import format_html
 from .models import User, ProviderProfile
 
@@ -100,9 +101,17 @@ class ProviderDocumentTypeAdmin(admin.ModelAdmin):
 
 @admin.register(ProviderDocument)
 class ProviderDocumentAdmin(admin.ModelAdmin):
-    list_display=['provider','document_type','status','reviewed_by','reviewed_at','created_at']
+    list_display=['provider','document_type','status','reviewed_by','reviewed_at','created_at','view_file_link']
     list_filter=['status','document_type','created_at']; search_fields=['provider__user__username','document_type__name']; raw_id_fields=['provider','reviewed_by']
+    readonly_fields=['view_file_link','created_at','updated_at','reviewed_at']
+    fields=['provider','document_type','file','view_file_link','status','reviewed_by','reviewed_at','review_note','created_at','updated_at']
     actions=['approve_documents','reject_documents','request_more_documents']
+    def view_file_link(self, obj):
+        if not obj or not obj.pk or not obj.file:
+            return '-'
+        url = reverse('accounts:provider_document_download', args=[obj.pk])
+        return format_html('<a class="button" href="{}" target="_blank" rel="noopener">فتح الملف / View File</a>', url)
+    view_file_link.short_description = 'فتح الملف'
     def _review(self, request, queryset, status, event):
         for doc in queryset:
             doc.status=status; doc.reviewed_by=request.user; doc.reviewed_at=timezone.now(); doc.save(update_fields=['status','reviewed_by','reviewed_at','updated_at'])
