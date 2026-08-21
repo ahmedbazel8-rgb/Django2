@@ -2,9 +2,12 @@
 Views لتطبيق accounts (تسجيل، دخول، ملف شخصي)
 Views for accounts app
 """
+from pathlib import Path
+from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db import transaction
 from django.views.generic import DetailView
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from .forms import UserRegisterForm, UserLoginForm, UserProfileForm, ProviderProfileForm
@@ -135,17 +138,22 @@ def provider_profile_edit_view(request):
     profile = services.get_provider_profile(request.user)
     
     if request.method == 'POST':
-        user_form = UserProfileForm(request.POST, instance=request.user)
-        provider_form = ProviderProfileForm(request.POST, request.FILES, instance=profile)
+        user_form = UserProfileForm(request.POST, instance=request.user, prefix='user')
+        provider_form = ProviderProfileForm(request.POST, request.FILES, instance=profile, prefix='provider')
         
         if user_form.is_valid() and provider_form.is_valid():
-            user_form.save()
-            provider_form.save()
-            messages.success(request, 'تم تحديث ملفك الشخصي بنجاح.')
+            with transaction.atomic():
+                user_form.save()
+                provider = provider_form.save(commit=False)
+                provider.user = request.user
+                provider.save()
+            profile.refresh_from_db()
+            messages.success(request, 'تم تحديث ملفك الشخصي بنجاح وحفظ البيانات في قاعدة البيانات.')
             return redirect('accounts:provider_profile_edit')
+        messages.error(request, 'تعذر حفظ ملف مقدم الخدمة. راجع أخطاء الحقول أدناه.')
     else:
-        user_form = UserProfileForm(instance=request.user)
-        provider_form = ProviderProfileForm(instance=profile)
+        user_form = UserProfileForm(instance=request.user, prefix='user')
+        provider_form = ProviderProfileForm(instance=profile, prefix='provider')
     
     checklist, can_submit = get_provider_onboarding_status(profile)
     context = {
@@ -254,5 +262,14 @@ def provider_document_download(request, pk):
     if not document.can_be_viewed_by(request.user):
         messages.error(request, 'ليس لديك صلاحية لعرض هذا المستند.')
         return redirect('home')
-    from django.http import FileResponse
-    return FileResponse(document.file.open('rb'), as_attachment=True, filename=document.file.name.split('/')[-1])
+    from django.http import FileResponse, Http404
+    filename = Path(document.file.name).name
+    try:
+        if document.file.storage.exists(document.file.name):
+            return FileResponse(document.file.open('rb'), as_attachment=True, filename=filename)
+        legacy_path = Path(settings.MEDIA_ROOT) / document.file.name
+        if legacy_path.exists() and legacy_path.is_file():
+            return FileResponse(legacy_path.open('rb'), as_attachment=True, filename=filename)
+    except FileNotFoundError as exc:
+        raise Http404('المستند غير موجود في التخزين.') from exc
+    raise Http404('المستند غير موجود في التخزين.')
