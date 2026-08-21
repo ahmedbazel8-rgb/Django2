@@ -21,6 +21,15 @@ class ProviderDocumentValidationTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         doc=form.save(commit=False); doc.provider=user.provider_profile; doc.save()
         self.assertTrue(doc.file.name.startswith('provider_documents/'))
+
+    def test_staff_can_open_provider_document_securely(self):
+        owner=User.objects.create_user(username='staff-owner', email='staff-owner@example.com', password='x', role='provider')
+        staff=User.objects.create_user(username='staff-user', email='staff@example.com', password='x', role='admin', is_staff=True)
+        doc=ProviderDocument.objects.create(provider=owner.provider_profile, document_type=self.doc_type, file=SimpleUploadedFile('id.pdf', b'%PDF', content_type='application/pdf'))
+        self.client.force_login(staff)
+        response=self.client.get(reverse('accounts:provider_document_download', args=[doc.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Disposition'].split(';')[0], 'attachment')
     def test_provider_cannot_download_another_provider_document(self):
         owner=User.objects.create_user(username='owner', email='owner@example.com', password='x', role='provider')
         other=User.objects.create_user(username='other', email='other@example.com', password='x', role='provider')
